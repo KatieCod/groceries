@@ -10,27 +10,9 @@ import { useState } from 'react';
 
 function HomePage() {
 
-  let [groceriesStock, changeGroceriesStock] = useState({
-    avocado: 23,
-    beef: 10,
-    bread: 8,
-    carrot: 6,
-    cheese: 12,
-    icecream: 21,
-    chocolate: 18,
-  });
+  let [groceriesStock, changeGroceriesStock] = useState(data.groceryData);
 
-  let [cartStock, changeCartStock] = useState({
-    avocado: 1,
-    beef: 1,
-    bread: 1,
-    carrot: 1,
-    cheese: 1,
-    icecream: 1,
-    chocolate: 1,
-  });
-
-  let [groceries, emptyGroceries] = useState([])
+  let [shoppingCart, setShoppingCart] = useState([])
 
   let [total, updateTotal] = useState(0)
 
@@ -39,67 +21,89 @@ function HomePage() {
   let [quantity, setQuantity] = useState(0)
 
   function decreaseGroceriesStock(itemName, price, image) {
-    if (groceriesStock[itemName] > 0) {
-      groceriesStock[itemName] = groceriesStock[itemName] - 1
-      let updateStock = {
-        ...groceriesStock,
-        [itemName]: groceriesStock[itemName]
-      }
-      groceries.push({ image: image, groceryName: itemName, price: price, stock: cartStock[itemName], handleClick: decreaseCartStock })
-      increaseCartStock(itemName)
-      changeGroceriesStock(updateStock)
-      countTotal()
-    }
-  }
 
-  function increaseCartStock(itemName) {
-    cartStock[itemName] = cartStock[itemName] + 1
-    let updateStock = {
-      ...cartStock,
-      [itemName]: cartStock[itemName]
-    }
-    changeCartStock(updateStock)
+    data.groceryData.map((item) => {
+      if (item.groceryName === itemName && item.stock > 0) {
+        item.stock = item.stock - 1
+        let updateStock = {
+          ...item,
+          stock: item.stock
+        }
+        changeGroceriesStock(updateStock)
+
+        const exist = shoppingCart.find(item => item.groceryName === itemName)
+        if (exist) {
+          item.cartStock = item.cartStock + 1
+          let updateCart = {
+            ...item,
+            cartStock: item.cartStock
+          }
+          changeGroceriesStock(updateCart)
+          let newShoppingCart = [...shoppingCart];
+          let selectedItem;
+          let index;
+          for (let i = 0; i < newShoppingCart.length; i++) {
+            if (newShoppingCart[i].groceryName === itemName) {
+              selectedItem = { ...newShoppingCart[i] };
+              index = i;
+              break;
+            }
+          }
+          selectedItem.cartStock = item.cartStock;
+          newShoppingCart[index] = selectedItem;
+          setShoppingCart(newShoppingCart)
+
+        } else {
+          changeGroceriesStock(updateStock)
+          setShoppingCart([...shoppingCart, { image: image, groceryName: itemName, price: price, cartStock: item.cartStock, handleClick: decreaseCartStock }])
+        }
+        countTotal()
+      }
+    })
   }
 
   function decreaseCartStock(itemName) {
-    if (cartStock[itemName] > 0) {
-      cartStock[itemName] = cartStock[itemName] - 1
-      let updateStock = {
-        ...cartStock,
-        [itemName]: cartStock[itemName]
-      }
-      changeCartStock(updateStock)
-      increaseGroceriesStock(itemName)
-    }
+    setShoppingCart((prevShoppingCart) => {
+      const updateShoppingCart = prevShoppingCart.map((item) => {
+        if (item.groceryName === itemName && item.cartStock > 0) {
+          item.cartStock = item.cartStock - 1;
+        }
+        return item;
+      });
+      return updateShoppingCart;
+    });
+    increaseGroceriesStock(itemName);
   }
 
   function increaseGroceriesStock(itemName) {
-    groceriesStock[itemName] = groceriesStock[itemName] + 1
-    let updateStock = {
-      ...groceriesStock,
-      [itemName]: groceriesStock[itemName]
-    }
-    changeGroceriesStock(updateStock)
+    data.groceryData.map((item) => {
+      if (item.groceryName === itemName && item.cartStock > 0) {
+        item.stock = item.stock + 1
+        let updateStock = {
+          ...groceriesStock,
+          stock: item.stock
+        }
+        changeGroceriesStock(updateStock)
+      }
+    })
   }
 
   function countTotal() {
-    total = total + 1
+    let newShoppingCart = [...shoppingCart];
     let prices = [];
     let sum = 0;
-    for (let i = 0; i < groceries.length; i++) {
-      prices.push(groceries[i].price)
-    }
+    newShoppingCart.forEach(item => prices.push(item.price * item.cartStock))
     prices.forEach(num => { sum += num })
     updateTotal(sum)
   }
 
   function showReceipt() {
     changeMode('receipt')
-    setQuantity(groceries.length)
+    setQuantity(shoppingCart.length)
   }
 
   function showShop() {
-    emptyGroceries([])
+    setShoppingCart([])
     changeMode('shop')
   }
 
@@ -113,17 +117,17 @@ function HomePage() {
               <h1 className='text-center'>Groceries</h1>
               {data.groceryData.map((item) => {
                 return (
-                  <Grocery image={item.img} groceryName={item.groceryName} price={item.price} stock={groceriesStock[item.groceryName]} handleClick={decreaseGroceriesStock} />
+                  <Grocery image={item.img} groceryName={item.groceryName} price={item.price} stock={item.stock} handleClick={decreaseGroceriesStock} />
                 )
               })}
             </div>
             <div className='col'>
               <h1 className='text-center'>Cart</h1>
-              {groceries.map((item) => <CartGrocery image={item.image} groceryName={item.groceryName} price={item.price} stock={item.stock} handleClick={item.handleClick} />)}
+              {shoppingCart.map((item) => <CartGrocery image={item.image} groceryName={item.groceryName} price={item.price} stock={item.cartStock} handleClick={item.handleClick} />)}
             </div>
           </div>
         </div>
-        <Total countTotal={total} getReceipt={showReceipt} buttonName={"Order"}/>
+        <Total countTotal={total} getReceipt={showReceipt} buttonName={"Order"} />
         <Footer />
       </div>
     );
@@ -131,7 +135,7 @@ function HomePage() {
     return (
       <div>
         <Header />
-        <Receipt getShop={showShop} buttonName={"Continue Shopping"} totalSum={total} itemBought={quantity}/>
+        <Receipt getShop={showShop} buttonName={"Continue Shopping"} totalSum={total} itemBought={quantity} />
         <Footer />
       </div>
     );
